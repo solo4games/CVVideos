@@ -1,41 +1,69 @@
-from graphviz import Digraph
+import cv2
+import numpy as np
+import math
 
-# Создаем объект диаграммы
-team_chart = Digraph(format='png')
-team_chart.attr(rankdir='TB', size='32')
+# Инициализация переменных для овала
+center = (0, 0)
+axes = (0, 0)
+drawing_ellipse = False
+start_point = (0, 0)
 
-# Основная роль
-team_chart.node('PM', 'Менеджер проекта')
+# Функция для рисования овала
+def draw_ellipse(img, center, axes):
+    # Разворачиваем углы от 0 до 360 градусов
+    for angle in range(0, 360, 1):
+        theta = np.radians(angle)
+        x = int(center[0] + axes[0] * math.cos(theta))
+        y = int(center[1] + axes[1] * math.sin(theta))
+        
+        # Проверяем, что точка лежит внутри изображения
+        if 0 <= x < img.shape[1] and 0 <= y < img.shape[0]:
+            img[y, x] = (0, 0, 0)  # Черный цвет для рисования пикселя
 
-# Подчиненные менеджера проекта
-team_chart.node('BA', 'Аналитик требований')
-team_chart.node('Arch', 'Архитектор')
-team_chart.node('LeadDev', 'Ведущий разработчик')
-team_chart.node('LeadQA', 'Ведущий тестировщик')
-team_chart.node('DocSpec', 'Специалист по документации')
+# Функция обратного вызова для обработки событий мыши
+def my_mouse_callback(event, x, y, flags, param):
+    global center, axes, drawing_ellipse, start_point
 
-# Связь с менеджером
-team_chart.edges([('PM', 'BA'), ('PM', 'Arch'), ('PM', 'LeadDev'), ('PM', 'LeadQA'), ('PM', 'DocSpec')])
+    if event == cv2.EVENT_LBUTTONDOWN:
+        # Начало рисования эллипса
+        drawing_ellipse = True
+        start_point = (x, y)
+        center = (x, y)
+        axes = (0, 0)
+        
+    elif event == cv2.EVENT_MOUSEMOVE:
+        if drawing_ellipse:
+            # Обновляем радиусы эллипса в зависимости от текущей позиции мыши
+            axes = (abs(x - start_point[0]), abs(y - start_point[1]))
 
-# Подчиненные аналитика и архитектора
-team_chart.node('ReqDoc', 'Документатор требований')
-team_chart.edge('BA', 'ReqDoc')
+    elif event == cv2.EVENT_LBUTTONUP:
+        # Завершаем рисование эллипса
+        drawing_ellipse = False
+        axes = (abs(x - start_point[0]), abs(y - start_point[1]))
+        draw_ellipse(param, center, axes)
 
-team_chart.node('DBA', 'Проектировщик базы данных')
-team_chart.node('TechSel', 'Эксперт по выбору технологий')
-team_chart.edge('Arch', 'DBA')
-team_chart.edge('Arch', 'TechSel')
+# Главная функция
+def main():
+    global center, axes, drawing_ellipse
+    
+    # Создание изображения
+    image = 255 * np.ones((400, 400, 3), np.uint8)  # Белый фон
+    temp = image.copy()
 
-# Разработчики под ведущим разработчиком
-team_chart.node('Frontend', 'Frontend-разработчик')
-team_chart.node('Backend', 'Backend-разработчик')
-team_chart.node('Integrator', 'Инженер интеграции')
-team_chart.edges([('LeadDev', 'Frontend'), ('LeadDev', 'Backend'), ('LeadDev', 'Integrator')])
+    cv2.namedWindow('Ellipse Example')
+    cv2.setMouseCallback('Ellipse Example', my_mouse_callback, image)
+    
+    while True:
+        temp = image.copy()
+        if drawing_ellipse:
+            draw_ellipse(temp, center, axes)
+        
+        cv2.imshow('Ellipse Example', temp)
+        
+        if cv2.waitKey(15) == 27:  # Нажатие ESC для выхода
+            break
 
-# Тестировщики под ведущим тестировщиком
-team_chart.node('AutoQA', 'Инженер автоматизации тестов')
-team_chart.node('ManualQA', 'Ручной тестировщик')
-team_chart.edges([('LeadQA', 'AutoQA'), ('LeadQA', 'ManualQA')])
+    cv2.destroyAllWindows()
 
-# Сохраняем диаграмму
-team_chart.render('team_hierarchy', view=True)
+if name == "main":
+    main()
